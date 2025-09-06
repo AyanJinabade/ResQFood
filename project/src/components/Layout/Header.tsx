@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Menu, X, User, LogOut, Settings, Heart } from 'lucide-react';
+import { Menu, X, User, LogOut, Settings, Heart, MessageCircle } from 'lucide-react';
+import { Link } from 'react-router-dom'; // ✅ For navigation
 
 const Header = () => {
   const { user, logout } = useAuth();
@@ -45,6 +46,14 @@ const Header = () => {
             <a href="#contact" className="text-gray-700 hover:text-green-600 transition-colors">
               Contact
             </a>
+            {/* ✅ Chatbot Button */}
+            <Link
+              to="/chat"
+              className="flex items-center bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all transform hover:scale-105"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Chat with us
+            </Link>
           </nav>
 
           {/* User Profile / Auth */}
@@ -119,6 +128,14 @@ const Header = () => {
               <a href="#contact" className="text-gray-700 hover:text-green-600 transition-colors">
                 Contact
               </a>
+              {/* ✅ Mobile Chatbot Button */}
+              <Link
+                to="/chat"
+                className="flex items-center bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-emerald-700"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Chat with us
+              </Link>
             </nav>
           </div>
         )}

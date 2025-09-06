@@ -25,39 +25,37 @@ const RegisterForm = ({ onSwitchToLogin, onClose }: RegisterFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
-      setIsLoading(false);
       return;
     }
 
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
-      setIsLoading(false);
       return;
     }
 
+    setIsLoading(true);
     try {
       const success = await register({
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        role: formData.role,
-        location: {
-          lat: 40.7128,
-          lng: -74.0060,
-          address: formData.address
-        }
-      });
+  full_name: formData.name,  // ✅ correct
+  email: formData.email,
+  phone: formData.phone,
+  role: formData.role,
+  address: formData.address,
+  lat: 40.7128,
+  lng: -74.0060,
+  password: formData.password
+});
 
-      if (success) {
-        onClose();
-      }
+
+      if (success) onClose();
+      else setError('Registration failed. Please try again.');
     } catch (err) {
       setError('Registration failed. Please try again.');
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -79,120 +77,102 @@ const RegisterForm = ({ onSwitchToLogin, onClose }: RegisterFormProps) => {
 
         {/* Role Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            I am a...
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">I am a...</label>
           <div className="grid grid-cols-3 gap-2">
-            {[
-              { value: 'restaurant', label: 'Restaurant', desc: 'Food business' },
-              { value: 'society', label: 'Society', desc: 'Community group' },
-              { value: 'ngo', label: 'NGO', desc: 'Charitable org' }
-            ].map((role) => (
+            {['restaurant', 'society', 'ngo'].map(role => (
               <button
-                key={role.value}
+                key={role}
                 type="button"
-                onClick={() => setFormData({ ...formData, role: role.value as any })}
+                onClick={() => setFormData({ ...formData, role: role as any })}
                 className={`p-3 rounded-lg border text-center transition-all ${
-                  formData.role === role.value
+                  formData.role === role
                     ? 'border-green-500 bg-green-50 text-green-700'
                     : 'border-gray-200 hover:border-green-300'
                 }`}
               >
-                <div className="font-medium">{role.label}</div>
-                <div className="text-xs text-gray-500">{role.desc}</div>
+                {role.charAt(0).toUpperCase() + role.slice(1)}
               </button>
             ))}
           </div>
         </div>
 
+        {/* Name, Email, Phone */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-              Organization Name
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Organization Name</label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
-                id="name"
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Your organization name"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
-                id="phone"
                 type="tel"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                onChange={e => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="+1 234 567 8900"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                 required
               />
             </div>
           </div>
         </div>
 
+        {/* Email */}
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-            Email Address
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
-              id="email"
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+              onChange={e => setFormData({ ...formData, email: e.target.value })}
               placeholder="your@email.com"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               required
             />
           </div>
         </div>
 
+        {/* Address */}
         <div>
-          <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
-            Address
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
-              id="address"
               type="text"
               value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              onChange={e => setFormData({ ...formData, address: e.target.value })}
+              placeholder="Full address"
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-              placeholder="Your full address"
               required
             />
           </div>
         </div>
 
+        {/* Password and Confirm Password */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
-                id="password"
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                onChange={e => setFormData({ ...formData, password: e.target.value })}
                 placeholder="Create password"
+                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                 required
               />
               <button
@@ -206,18 +186,15 @@ const RegisterForm = ({ onSwitchToLogin, onClose }: RegisterFormProps) => {
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm Password
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
-                id="confirmPassword"
                 type={showConfirmPassword ? 'text' : 'password'}
                 value={formData.confirmPassword}
-                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
                 placeholder="Confirm password"
+                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                 required
               />
               <button
@@ -231,29 +208,20 @@ const RegisterForm = ({ onSwitchToLogin, onClose }: RegisterFormProps) => {
           </div>
         </div>
 
+        {/* Submit */}
         <button
           type="submit"
           disabled={isLoading}
           className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-lg font-medium hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 flex items-center justify-center"
         >
-          {isLoading ? (
-            <>
-              <Loader className="animate-spin w-5 h-5 mr-2" />
-              Creating Account...
-            </>
-          ) : (
-            'Create Account'
-          )}
+          {isLoading ? <><Loader className="animate-spin w-5 h-5 mr-2" /> Creating Account...</> : 'Create Account'}
         </button>
       </form>
 
       <div className="text-center">
         <p className="text-gray-600">
           Already have an account?{' '}
-          <button
-            onClick={onSwitchToLogin}
-            className="text-green-600 hover:text-green-700 font-medium"
-          >
+          <button onClick={onSwitchToLogin} className="text-green-600 hover:text-green-700 font-medium">
             Sign in here
           </button>
         </p>
