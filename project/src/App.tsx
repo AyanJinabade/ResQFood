@@ -17,6 +17,7 @@ const navigation = [
 ];
 
 function App() {
+  
   const [activeTab, setActiveTab] = useState('dashboard');
 
   const renderActiveComponent = () => {
