@@ -3,7 +3,7 @@
 
 A comprehensive food donation platform that connects restaurants, societies, and NGOs to reduce food waste and help those in need.
 
-## 🚀 Features
+## Features
 
 ### Real-time Food Donation System
 - **Restaurant/Society Dashboard** - Add, manage, and track food donations
@@ -33,7 +33,7 @@ A comprehensive food donation platform that connects restaurants, societies, and
 - **Build Tool**: Vite
 - **Deployment**: Ready for Netlify/Vercel
 
-## 📦 Installation
+##  Installation
 
 1. **Clone the repository**
    ```bash
@@ -65,7 +65,7 @@ A comprehensive food donation platform that connects restaurants, societies, and
    npm run dev
    ```
 
-## 🗄️ Database Schema
+##  Database Schema
 
 ### Core Tables
 - **profiles** - User profiles with role-based information
@@ -80,7 +80,7 @@ A comprehensive food donation platform that connects restaurants, societies, and
 - **Automatic triggers** - Status updates and notifications
 - **Performance indexes** - Optimized queries
 
-## 👥 User Roles
+##  User Roles
 
 ### Restaurant/Society
 - Add food donations with details
@@ -100,7 +100,7 @@ A comprehensive food donation platform that connects restaurants, societies, and
 - Manage users and content
 - Generate reports
 
-## 🔄 Real-time Features
+##  Real-time Features
 
 The platform includes real-time updates for:
 - New food donations appearing instantly
@@ -108,7 +108,7 @@ The platform includes real-time updates for:
 - Notifications for all users
 - Live analytics updates
 
-## 🚀 Deployment
+##  Deployment
 
 ### Environment Variables
 Make sure to set these in your deployment platform:
@@ -132,14 +132,14 @@ npm run build
 2. Set environment variables in Vercel dashboard
 3. Deploy automatically on push to main branch
 
-## 🔐 Security
+##  Security
 
 - **Row Level Security** - Database-level access control
 - **Role-based permissions** - Different access levels
 - **Secure authentication** - Supabase Auth integration
 - **Data validation** - Input sanitization and validation
 
-## 📊 Analytics
+##  Analytics
 
 The platform provides comprehensive analytics:
 - Total users and donations
@@ -147,7 +147,7 @@ The platform provides comprehensive analytics:
 - User engagement metrics
 - Impact measurement (people fed, meals saved)
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -155,18 +155,18 @@ The platform provides comprehensive analytics:
 4. Add tests if applicable
 5. Submit a pull request
 
-## 📄 License
+##  License
 
 This project is licensed under the MIT License.
 
-## 🆘 Support
+##  Support
 
 For support and questions:
 - Create an issue in the repository
 - Check the documentation
 - Contact the development team
 
-## 🎯 Demo Credentials
+##  Demo Credentials
 
 For testing purposes, you can use these demo accounts:
 - **Restaurant**: restaurant@demo.com / demo123
@@ -176,10 +176,9 @@ For testing purposes, you can use these demo accounts:
 
 ---
 
-Built with ❤️ to reduce food waste and help communities in need.
+Built to reduce food waste and help communities in need.
 =======
 Resqfood – Food Donation Platform
-Overview
 Resqfood is a web application that reduces food wastage by connecting surplus food providers with NGOs to enable efficient food donations.
 
 Key Features
