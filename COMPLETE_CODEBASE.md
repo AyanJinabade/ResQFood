@@ -43,7 +43,7 @@ resqfood/
 
 ---
 
-## 📁 Configuration Files
+##  Configuration Files
 
 ### package.json
 ```json
@@ -208,7 +208,7 @@ export default tseslint.config(
 
 ---
 
-## 📁 Public Files
+##  Public Files
 
 ### index.html
 ```html
@@ -229,7 +229,7 @@ export default tseslint.config(
 
 ---
 
-## 📁 Source Files
+##  Source Files
 
 ### src/main.tsx
 ```typescript
@@ -259,7 +259,7 @@ createRoot(document.getElementById('root')!).render(
 
 ---
 
-## 📁 Types
+## Types
 
 ### src/types/index.ts
 ```typescript
@@ -342,7 +342,7 @@ export interface AdminStats {
 
 ---
 
-## 📁 Context
+## Context
 
 ### src/context/AuthContext.tsx
 ```typescript
@@ -630,7 +630,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
 ---
 
-## 📁 Components
+## Components
 
 ### src/components/Layout/Header.tsx
 ```typescript
