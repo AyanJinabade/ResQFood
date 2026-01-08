@@ -25,7 +25,7 @@ A comprehensive food donation platform that connects restaurants, societies, and
 - **Responsive Design** - Works perfectly on all devices
 - **TypeScript** - Full type safety throughout the application
 
-## 🛠 Tech Stack
+##  Tech Stack
 
 - **Frontend**: React 18, TypeScript, Tailwind CSS
 - **Backend**: Supabase (PostgreSQL, Real-time, Auth)
@@ -35,18 +35,18 @@ A comprehensive food donation platform that connects restaurants, societies, and
 
 ##  Installation
 
-1. **Clone the repository**
+1. Clone the repository
    ```bash
    git clone <repository-url>
    cd resqfood
    ```
 
-2. **Install dependencies**
+2. Install dependencies
    ```bash
    npm install
    ```
 
-3. **Set up Supabase**
+3. Set up Supabase
    - Create a new Supabase project at [supabase.com](https://supabase.com)
    - Copy your project URL and anon key
    - Create a `.env` file based on `.env.example`
@@ -55,12 +55,12 @@ A comprehensive food donation platform that connects restaurants, societies, and
    ```
    - Add your Supabase credentials to `.env`
 
-4. **Run database migrations**
+4. Run database migrations
    - Go to your Supabase dashboard
    - Navigate to SQL Editor
    - Copy and run the SQL from `supabase/migrations/create_resqfood_schema.sql`
 
-5. **Start the development server**
+5. Start the development server
    ```bash
    npm run dev
    ```
