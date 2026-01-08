@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # ResQFood - Food Donation Platform with Supabase
 
 A comprehensive food donation platform that connects restaurants, societies, and NGOs to reduce food waste and help those in need.
@@ -154,10 +154,6 @@ The platform provides comprehensive analytics:
 3. Make your changes
 4. Add tests if applicable
 5. Submit a pull request
-
-##  License
-
-This project is licensed under the MIT License.
 
 ##  Support
 
