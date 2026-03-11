@@ -1,5 +1,14 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useAuth } from './AuthContext';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+  ReactNode,
+} from "react";
+
+import { useAuth } from "./AuthContext";
+
 import {
   FoodDonation,
   DonationRequest,
@@ -15,13 +24,15 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   getAnalytics,
-} from '../lib/supabase';
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+  supabase,
+} from "../lib/supabase";
 
-// Import the Supabase client (assuming it's exported from ../lib/supabase)
-import { supabase } from '../lib/supabase';
+import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
-// Define types for filters
+
+/* Types */
+
+
 interface DonationFilters {
   donor_id?: string;
   status?: string;
@@ -32,7 +43,6 @@ interface RequestFilters {
   donation_id?: string;
 }
 
-// Define AdminStats for getAdminStats (from AdminDashboard.tsx)
 interface AdminStats {
   totalUsers: number;
   totalDonations: number;
@@ -44,60 +54,83 @@ interface AdminStats {
 }
 
 interface AppContextType {
-  // Food Donations
   donations: FoodDonation[];
   loadingDonations: boolean;
   addDonation: (
-    donation: Omit<FoodDonation, 'id' | 'created_at' | 'updated_at' | 'donor' | 'reserved_ngo'>
+    donation: Omit<
+      FoodDonation,
+      "id" | "created_at" | "updated_at" | "donor" | "reserved_ngo"
+    >
   ) => Promise<FoodDonation>;
-  updateDonation: (id: string, updates: Partial<FoodDonation>) => Promise<FoodDonation>;
+
+  updateDonation: (
+    id: string,
+    updates: Partial<FoodDonation>
+  ) => Promise<FoodDonation>;
+
   removeDonation: (id: string) => Promise<void>;
   refreshDonations: () => Promise<void>;
 
-  // Donation Requests
   requests: DonationRequest[];
   loadingRequests: boolean;
+
   addRequest: (
-    request: Omit<DonationRequest, 'id' | 'created_at' | 'updated_at' | 'donation' | 'ngo'>
+    request: Omit<
+      DonationRequest,
+      "id" | "created_at" | "updated_at" | "donation" | "ngo"
+    >
   ) => Promise<DonationRequest>;
-  updateRequest: (id: string, updates: Partial<DonationRequest>) => Promise<DonationRequest>;
+
+  updateRequest: (
+    id: string,
+    updates: Partial<DonationRequest>
+  ) => Promise<DonationRequest>;
+
   refreshRequests: () => Promise<void>;
 
-  // Notifications
   notifications: Notification[];
   unreadCount: number;
   loadingNotifications: boolean;
+
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
 
-  // Analytics
   analytics: {
     totalUsers: number;
     totalDonations: number;
     activeDonations: number;
     totalRequests: number;
   };
+
   refreshAnalytics: () => Promise<void>;
 
-  // Admin Stats
   getAdminStats: () => AdminStats;
 }
 
-const AppContext = createContext<AppContextType | undefined>(undefined);
+const AppContext = createContext<AppContextType | null>(null);
+
+
+/* Hook */
+
 
 export const useApp = () => {
   const context = useContext(AppContext);
+
   if (!context) {
-    throw new Error('useApp must be used within an AppProvider');
+    throw new Error("useApp must be used within AppProvider");
   }
+
   return context;
 };
+
+/* ---------------------------------------------------- */
+/* Provider */
+/* ---------------------------------------------------- */
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { user, profile } = useAuth();
 
-  // State
   const [donations, setDonations] = useState<FoodDonation[]>([]);
   const [loadingDonations, setLoadingDonations] = useState(false);
 
@@ -114,111 +147,141 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     totalRequests: 0,
   });
 
-  // Computed values
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  
+  /* Computed */
+  
 
-  // Food Donations
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications]
+  );
+
+  
+  /* Donations */
+  
+
   const refreshDonations = async () => {
     if (!user) return;
 
     setLoadingDonations(true);
+
     try {
       const filters: DonationFilters = {};
 
-      // Filter based on user role
-      if (profile?.role === 'restaurant' || profile?.role === 'society') {
+      if (profile?.role === "restaurant" || profile?.role === "society") {
         filters.donor_id = user.id;
-      } else if (profile?.role === 'ngo') {
-        filters.status = 'available';
       }
-      // Admin sees all donations
+
+      if (profile?.role === "ngo") {
+        filters.status = "available";
+      }
 
       const data = await getFoodDonations(filters);
+
       setDonations(data);
     } catch (error) {
-      console.error('Error fetching donations:', error);
+      console.error("Error fetching donations:", error);
     } finally {
       setLoadingDonations(false);
     }
   };
 
   const addDonation = async (
-    donation: Omit<FoodDonation, 'id' | 'created_at' | 'updated_at' | 'donor' | 'reserved_ngo'>
+    donation: Omit<
+      FoodDonation,
+      "id" | "created_at" | "updated_at" | "donor" | "reserved_ngo"
+    >
   ) => {
     const newDonation = await createFoodDonation(donation);
+
     setDonations((prev) => [newDonation, ...prev]);
+
     return newDonation;
   };
 
   const updateDonation = async (id: string, updates: Partial<FoodDonation>) => {
     const updatedDonation = await updateFoodDonation(id, updates);
-    setDonations((prev) => prev.map((d) => (d.id === id ? updatedDonation : d)));
+
+    setDonations((prev) =>
+      prev.map((d) => (d.id === id ? updatedDonation : d))
+    );
+
     return updatedDonation;
   };
 
   const removeDonation = async (id: string) => {
     await deleteFoodDonation(id);
+
     setDonations((prev) => prev.filter((d) => d.id !== id));
   };
 
-  // Donation Requests
+  
+  /* Requests */
+  
+
   const refreshRequests = async () => {
     if (!user || !profile) return;
 
     setLoadingRequests(true);
+
     try {
       const filters: RequestFilters = {};
 
-      if (profile.role === 'ngo') {
+      if (profile.role === "ngo") {
         filters.ngo_id = user.id;
-      } else if (profile.role === 'restaurant' || profile.role === 'society') {
-        // Get requests for user's donations
-        const userDonations = await getFoodDonations({ donor_id: user.id });
-        const donationIds = userDonations.map((d) => d.id);
-
-        if (donationIds.length > 0) {
-          const allRequests = await getDonationRequests();
-          const userRequests = allRequests.filter((r) => donationIds.includes(r.donation_id));
-          setRequests(userRequests);
-          setLoadingRequests(false);
-          return;
-        }
       }
-      // Admin sees all requests
 
       const data = await getDonationRequests(filters);
+
       setRequests(data);
     } catch (error) {
-      console.error('Error fetching requests:', error);
+      console.error("Error fetching requests:", error);
     } finally {
       setLoadingRequests(false);
     }
   };
 
   const addRequest = async (
-    request: Omit<DonationRequest, 'id' | 'created_at' | 'updated_at' | 'donation' | 'ngo'>
+    request: Omit<
+      DonationRequest,
+      "id" | "created_at" | "updated_at" | "donation" | "ngo"
+    >
   ) => {
     const newRequest = await createDonationRequest(request);
+
     setRequests((prev) => [newRequest, ...prev]);
+
     return newRequest;
   };
 
-  const updateRequest = async (id: string, updates: Partial<DonationRequest>) => {
+  const updateRequest = async (
+    id: string,
+    updates: Partial<DonationRequest>
+  ) => {
     const updatedRequest = await updateDonationRequest(id, updates);
-    setRequests((prev) => prev.map((r) => (r.id === id ? updatedRequest : r)));
+
+    setRequests((prev) =>
+      prev.map((r) => (r.id === id ? updatedRequest : r))
+    );
+
     return updatedRequest;
   };
 
-  // Notifications
+  
+  /* Notifications */
+  
+
   const refreshNotifications = async () => {
     if (!user) return;
 
     setLoadingNotifications(true);
+
     try {
       const data = await getNotifications(user.id);
+
       setNotifications(data);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error("Error fetching notifications:", error);
     } finally {
       setLoadingNotifications(false);
     }
@@ -226,57 +289,88 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const markAsRead = async (id: string) => {
     await markNotificationAsRead(id);
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
   };
 
   const markAllAsRead = async () => {
     if (!user) return;
+
     await markAllNotificationsAsRead(user.id);
+
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  // Analytics
+  
+  /* Analytics */
+  
+
   const refreshAnalytics = async () => {
     try {
       const data = await getAnalytics();
+
       setAnalytics(data);
     } catch (error) {
-      console.error('Error fetching analytics:', error);
+      console.error("Error fetching analytics:", error);
     }
   };
 
-  // Admin Stats (for AdminDashboard.tsx)
-  const getAdminStats = (): AdminStats => {
-    const monthlyDonations = donations.reduce((acc, donation) => {
-      const month = new Date(donation.created_at).toLocaleString('default', {
-        month: 'long',
-        year: 'numeric',
-      });
-      acc[month] = (acc[month] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+  /* Admin Stats */
+  
 
-    const usersByRole = { restaurant: 0, society: 0, ngo: 0, admin: 0 }; // Mock data; replace with real query
-    const donationsByType = donations.reduce((acc, donation) => {
-      acc[donation.food_type] = (acc[donation.food_type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+  const getAdminStats = (): AdminStats => {
+    const monthly: Record<string, number> = {};
+
+    donations.forEach((d) => {
+      const month = new Date(d.created_at).toLocaleString("default", {
+        month: "long",
+        year: "numeric",
+      });
+
+      monthly[month] = (monthly[month] || 0) + 1;
+    });
+
+    const donationsByType: Record<string, number> = {};
+
+    donations.forEach((d) => {
+      donationsByType[d.food_type] =
+        (donationsByType[d.food_type] || 0) + 1;
+    });
 
     return {
       totalUsers: analytics.totalUsers,
       totalDonations: analytics.totalDonations,
       activeDonations: analytics.activeDonations,
-      totalServed: donations.reduce((sum, d) => sum + (d.quantity || 0), 0),
-      monthlyDonations: Object.entries(monthlyDonations).map(([month, count]) => ({
-        month,
-        count,
-      })),
-      usersByRole,
+
+      totalServed: donations.reduce(
+        (sum, d) => sum + Number(d.quantity ?? 0),
+        0
+      ),
+
+      monthlyDonations: Object.entries(monthly)
+        .map(([month, count]) => ({ month, count }))
+        .sort(
+          (a, b) =>
+            new Date(a.month).getTime() - new Date(b.month).getTime()
+        ),
+
+      usersByRole: {
+        restaurant: 0,
+        society: 0,
+        ngo: 0,
+        admin: 0,
+      },
+
       donationsByType,
     };
   };
 
-  // Effects
+  
+  /* Initial Load */
+  
+
   useEffect(() => {
     if (user && profile) {
       refreshDonations();
@@ -286,65 +380,72 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, profile]);
 
-  // Real-time subscriptions
+  
+  /* Realtime */
+  
+
   useEffect(() => {
     if (!user) return;
 
-    // Subscribe to donations changes
     const donationsChannel = supabase
-      .channel('food_donations_changes')
+      .channel("donations_channel")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'food_donations' },
+        "postgres_changes",
+        { event: "*", schema: "public", table: "food_donations" },
         (payload: RealtimePostgresChangesPayload<FoodDonation>) => {
-          console.log('Donation update:', payload);
-          refreshDonations();
+          if (payload.eventType === "INSERT") {
+            setDonations((prev) => [payload.new as FoodDonation, ...prev]);
+          }
+
+          if (payload.eventType === "UPDATE") {
+            setDonations((prev) =>
+              prev.map((d) =>
+                d.id === payload.new.id ? (payload.new as FoodDonation) : d
+              )
+            );
+          }
+
+          if (payload.eventType === "DELETE") {
+            setDonations((prev) =>
+              prev.filter((d) => d.id !== payload.old.id)
+            );
+          }
         }
       )
       .subscribe();
 
-    // Subscribe to requests changes
-    const requestsChannel = supabase
-      .channel('donation_requests_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'donation_requests' },
-        (payload: RealtimePostgresChangesPayload<DonationRequest>) => {
-          console.log('Request update:', payload);
-          refreshRequests();
-        }
-      )
-      .subscribe();
-
-    // Subscribe to notifications
     const notificationsChannel = supabase
-      .channel('notifications_changes')
+      .channel("notifications_channel")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
           filter: `user_id=eq.${user.id}`,
         },
         (payload: RealtimePostgresChangesPayload<Notification>) => {
-          console.log('New notification:', payload);
-          refreshNotifications();
+          setNotifications((prev) => [
+            payload.new as Notification,
+            ...prev,
+          ]);
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(donationsChannel);
-      supabase.removeChannel(requestsChannel);
-      supabase.removeChannel(notificationsChannel);
+      donationsChannel.unsubscribe();
+      notificationsChannel.unsubscribe();
     };
   }, [user]);
+
+  
+  /* Provider */
+  
 
   return (
     <AppContext.Provider
       value={{
-        // Food Donations
         donations,
         loadingDonations,
         addDonation,
@@ -352,14 +453,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         removeDonation,
         refreshDonations,
 
-        // Donation Requests
         requests,
         loadingRequests,
         addRequest,
         updateRequest,
         refreshRequests,
 
-        // Notifications
         notifications,
         unreadCount,
         loadingNotifications,
@@ -367,11 +466,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         markAllAsRead,
         refreshNotifications,
 
-        // Analytics
         analytics,
         refreshAnalytics,
 
-        // Admin Stats
         getAdminStats,
       }}
     >
