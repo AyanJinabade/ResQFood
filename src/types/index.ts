@@ -1,49 +1,76 @@
+export type Role = 'restaurant' | 'society' | 'ngo' | 'admin';
+
+export type DonationStatus =
+  | 'available'
+  | 'reserved'
+  | 'collected'
+  | 'expired';
+
+export type RequestStatus =
+  | 'pending'
+  | 'accepted'
+  | 'rejected'
+  | 'collected';
+
+export type FoodType =
+  | 'meals'
+  | 'bakery'
+  | 'fruits'
+  | 'vegetables'
+  | 'dairy'
+  | 'other';
+
+export interface Location {
+  lat: number;
+  lng: number;
+  address: string;
+}
 export interface User {
   id: string;
   name: string;
   email: string;
-  phone: string;
-  role: 'restaurant' | 'society' | 'ngo' | 'admin';
-  location: {
-    lat: number;
-    lng: number;
-    address: string;
-  };
+  phone?: string;
+  role: Role;
+  location: Location;
   verified: boolean;
   createdAt: string;
 }
 
 export interface FoodDonation {
   id: string;
+
   userId: string;
   userName: string;
+
   foodName: string;
-  foodType: 'meals' | 'bakery' | 'fruits' | 'vegetables' | 'dairy' | 'other';
+  foodType: FoodType;
   quantity: number;
   unit: string;
-  description: string;
+  description?: string;
   imageUrl?: string;
-  freshnessScore: number;
+
+  freshnessScore?: number;
   createdAt: string;
-  expiryTime: string;
-  status: 'available' | 'reserved' | 'collected' | 'expired';
-  location: {
-    lat: number;
-    lng: number;
-    address: string;
-  };
+  expiryTime?: string;
+  status: DonationStatus;
+  location: Location;
+
   reservedBy?: string;
   collectedAt?: string;
-}
 
+  donor_id?: string;
+  freshness_score?: number;
+}
 export interface NGORequest {
   id: string;
   ngoId: string;
   ngoName: string;
   donationId: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'collected';
+  status: RequestStatus;
   requestedAt: string;
+
   message?: string;
+
   feedback?: {
     rating: number;
     comment: string;
@@ -54,22 +81,31 @@ export interface NGORequest {
 
 export interface Feedback {
   id: string;
+
   fromUserId: string;
   fromUserName: string;
+
   toUserId: string;
   toUserName: string;
+
   donationId: string;
+
   rating: number;
-  comment: string;
+  comment?: string;
+
   createdAt: string;
 }
-
 export interface AdminStats {
   totalUsers: number;
   totalDonations: number;
   activeDonations: number;
   totalServed: number;
-  usersByRole: Record<string, number>;
-  donationsByType: Record<string, number>;
-  monthlyDonations: Array<{ month: string; count: number }>;
+
+  usersByRole: Record<Role, number>;
+  donationsByType: Record<FoodType, number>;
+
+  monthlyDonations: Array<{
+    month: string;
+    count: number;
+  }>;
 }
