@@ -10,14 +10,9 @@ import {
   CheckCircle,
 } from 'lucide-react';
 
-// Define the FoodDonation interface based on the error message
-interface FoodDonation {
-  id: string;
-  created_at: string;
-  updated_at: string;
+// ---------------- TYPES ----------------
+interface FoodDonationInput {
   donor_id: string;
-  donor: any; // Replace with proper donor type if available
-  reserved_ngo: any; // Replace with proper NGO type if available
   food_name: string;
   food_type: 'meals' | 'bakery' | 'fruits' | 'vegetables' | 'dairy' | 'other';
   quantity: number;
@@ -26,7 +21,7 @@ interface FoodDonation {
   image_url?: string;
   freshness_score: number;
   expiry_time: string;
-  status: 'available' | 'reserved' | 'collected' | 'expired' | 'cancelled';
+  status: 'available';
   pickup_instructions?: string;
   dietary_info?: string[];
   allergen_info?: string[];
@@ -35,12 +30,14 @@ interface FoodDonation {
 const AddFoodForm = () => {
   const { user, profile } = useAuth();
   const { addDonation } = useApp();
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     foodName: '',
-    foodType: 'meals' as FoodDonation['food_type'],
+    foodType: 'meals' as FoodDonationInput['food_type'],
     quantity: '',
     unit: 'servings',
     description: '',
@@ -62,46 +59,72 @@ const AddFoodForm = () => {
 
   const units = ['servings', 'pieces', 'kg', 'lbs', 'liters', 'packages'];
 
-  // Simulate freshness score based on food type and expiry time
-  const calculateFreshness = () => {
-    const baseScore = Math.floor(Math.random() * 20) + 80; // 80-100
-    const expiryPenalty = Math.max(0, (parseInt(formData.expiryHours) - 4) * -2);
-    return Math.max(70, baseScore + expiryPenalty);
+  // ---------------- HELPERS ----------------
+  const safeNumber = (val: string) => {
+    const num = Number(val);
+    return isNaN(num) ? 0 : num;
   };
 
+  const calculateFreshness = () => {
+    const base = Math.floor(Math.random() * 20) + 80;
+    const expiryPenalty = Math.max(0, (safeNumber(formData.expiryHours) - 4) * -2);
+    return Math.max(70, base + expiryPenalty);
+  };
+
+  // ---------------- SUBMIT ----------------
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !profile) return;
+
+    setError(null);
+
+    const quantity = safeNumber(formData.quantity);
+    const expiryHours = safeNumber(formData.expiryHours);
+
+    // Validation
+    if (!formData.foodName.trim()) {
+      return setError("Food name is required");
+    }
+
+    if (quantity <= 0) {
+      return setError("Quantity must be greater than 0");
+    }
+
+    if (!formData.description.trim()) {
+      return setError("Description is required");
+    }
+
+    if (expiryHours <= 0) {
+      return setError("Invalid expiry time");
+    }
 
     setIsSubmitting(true);
 
     try {
       const expiryTime = new Date();
-      expiryTime.setHours(expiryTime.getHours() + parseInt(formData.expiryHours));
+      expiryTime.setHours(expiryTime.getHours() + expiryHours);
 
-      const donationData: Omit<
-        FoodDonation,
-        'id' | 'created_at' | 'updated_at' | 'donor' | 'reserved_ngo'
-      > & { userId: string } = {
-        donor_id: user.id,
-        userId: user.id,
-        food_name: formData.foodName,
+      const donationData: FoodDonationInput = {
+        donor_id: user.id, // ✅ FIXED
+        food_name: formData.foodName.trim(),
         food_type: formData.foodType,
-        quantity: parseInt(formData.quantity),
+        quantity,
         unit: formData.unit,
-        description: formData.description,
+        description: formData.description.trim(),
         image_url: formData.imageUrl || undefined,
         freshness_score: calculateFreshness(),
         expiry_time: expiryTime.toISOString(),
-        status: 'available' as const, // Explicitly set as literal type
+        status: 'available',
         pickup_instructions: formData.pickupInstructions || undefined,
-        dietary_info: formData.dietaryInfo.length > 0 ? formData.dietaryInfo : undefined,
-        allergen_info: formData.allergenInfo.length > 0 ? formData.allergenInfo : undefined,
+        dietary_info: formData.dietaryInfo.length ? formData.dietaryInfo : undefined,
+        allergen_info: formData.allergenInfo.length ? formData.allergenInfo : undefined,
       };
 
       await addDonation(donationData);
 
       setShowSuccess(true);
+
+      // Reset form
       setFormData({
         foodName: '',
         foodType: 'meals',
@@ -116,225 +139,96 @@ const AddFoodForm = () => {
       });
 
       setTimeout(() => setShowSuccess(false), 3000);
-    } catch (error) {
-      console.error('Failed to add donation:', error);
+
+    } catch (err) {
+      console.error(err);
+      setError("Failed to add donation. Try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // ---------------- SUCCESS UI ----------------
   if (showSuccess) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-8 h-8 text-green-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Food Added Successfully!</h2>
-          <p className="text-gray-600 mb-6">Your food donation is now available for NGOs to request.</p>
-          <button
-            onClick={() => setShowSuccess(false)}
-            className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all transform hover:scale-105"
-          >
-            Add Another Food Item
-          </button>
-        </div>
+      <div className="bg-white rounded-xl shadow p-8 text-center">
+        <CheckCircle className="w-10 h-10 text-green-600 mx-auto mb-3" />
+        <h2 className="text-xl font-bold">Food Added Successfully!</h2>
+        <p className="text-gray-600 mt-2">Your donation is live for NGOs.</p>
       </div>
     );
   }
 
+  // ---------------- FORM UI ----------------
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center space-x-3 mb-6">
-        <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg">
-          <UtensilsCrossed className="w-6 h-6 text-white" />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Add Food Donation</h2>
-          <p className="text-gray-600">Share your surplus food with those in need</p>
-        </div>
-      </div>
+    <div className="bg-white rounded-xl shadow p-6">
+      <h2 className="text-xl font-bold mb-4 flex items-center">
+        <UtensilsCrossed className="mr-2" /> Add Food Donation
+      </h2>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Food Type Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Food Category
-          </label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {foodTypes.map((type) => (
-              <button
-                key={type.value}
-                type="button"
-                onClick={() => setFormData({ ...formData, foodType: type.value as FoodDonation['food_type'] })}
-                className={`p-4 rounded-lg border text-center transition-all ${
-                  formData.foodType === type.value
-                    ? 'border-green-500 bg-green-50 text-green-700'
-                    : 'border-gray-200 hover:border-green-300'
-                }`}
-              >
-                <div className="text-2xl mb-1">{type.icon}</div>
-                <div className="font-medium text-sm">{type.label}</div>
-              </button>
-            ))}
-          </div>
+      {/* ERROR MESSAGE */}
+      {error && (
+        <div className="bg-red-100 text-red-700 p-3 mb-4 rounded">
+          {error}
         </div>
+      )}
 
-        {/* Food Details */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label htmlFor="foodName" className="block text-sm font-medium text-gray-700 mb-1">
-              Food Item Name *
-            </label>
-            <input
-              id="foodName"
-              type="text"
-              value={formData.foodName}
-              onChange={(e) => setFormData({ ...formData, foodName: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-              placeholder="e.g., Vegetable Biryani, Fresh Bread"
-              required
-            />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
-                Quantity *
-              </label>
-              <input
-                id="quantity"
-                type="number"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                placeholder="50"
-                min="1"
-                required
-              />
-            </div>
-            <div>
-              <label htmlFor="unit" className="block text-sm font-medium text-gray-700 mb-1">
-                Unit
-              </label>
-              <select
-                id="unit"
-                value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-              >
-                {units.map((unit) => (
-                  <option key={unit} value={unit}>
-                    {unit}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
+        {/* FOOD NAME */}
+        <input
+          type="text"
+          placeholder="Food name"
+          value={formData.foodName}
+          onChange={(e) => setFormData({ ...formData, foodName: e.target.value })}
+          className="w-full border p-2 rounded"
+        />
 
-        {/* Description */}
-        <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-            Description *
-          </label>
-          <textarea
-            id="description"
-            rows={3}
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-            placeholder="Describe the food, ingredients, preparation method, any allergens, etc."
-            required
-          />
-        </div>
+        {/* QUANTITY */}
+        <input
+          type="number"
+          placeholder="Quantity"
+          value={formData.quantity}
+          onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+          className="w-full border p-2 rounded"
+        />
 
-        {/* Expiry Time */}
-        <div>
-          <label htmlFor="expiryHours" className="block text-sm font-medium text-gray-700 mb-1">
-            <Clock className="w-4 h-4 inline mr-2" />
-            Best Before (Hours from now)
-          </label>
-          <select
-            id="expiryHours"
-            value={formData.expiryHours}
-            onChange={(e) => setFormData({ ...formData, expiryHours: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-          >
-            <option value="2">2 hours</option>
-            <option value="4">4 hours</option>
-            <option value="8">8 hours</option>
-            <option value="12">12 hours</option>
-            <option value="24">24 hours</option>
-          </select>
-          <p className="text-sm text-gray-500 mt-1">
-            <AlertTriangle className="w-4 h-4 inline mr-1" />
-            Choose realistic timeframe to maintain food quality
-          </p>
-        </div>
+        {/* DESCRIPTION */}
+        <textarea
+          placeholder="Description"
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          className="w-full border p-2 rounded"
+        />
 
-        {/* Image Upload */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            <Camera className="w-4 h-4 inline mr-2" />
-            Food Image (Optional)
-          </label>
-          <input
-            type="url"
-            value={formData.imageUrl}
-            onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-            placeholder="Paste image URL or upload later"
-          />
-          <p className="text-sm text-gray-500 mt-1">
-            High-quality images help NGOs better assess the food
-          </p>
-        </div>
+        {/* EXPIRY */}
+        <select
+          value={formData.expiryHours}
+          onChange={(e) => setFormData({ ...formData, expiryHours: e.target.value })}
+          className="w-full border p-2 rounded"
+        >
+          <option value="2">2 hours</option>
+          <option value="4">4 hours</option>
+          <option value="8">8 hours</option>
+          <option value="12">12 hours</option>
+          <option value="24">24 hours</option>
+        </select>
 
-        {/* Pickup Instructions */}
-        <div>
-          <label htmlFor="pickupInstructions" className="block text-sm font-medium text-gray-700 mb-1">
-            Pickup Instructions
-          </label>
-          <textarea
-            id="pickupInstructions"
-            rows={2}
-            value={formData.pickupInstructions}
-            onChange={(e) => setFormData({ ...formData, pickupInstructions: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-            placeholder="Special instructions for pickup (timing, location, etc.)"
-          />
-        </div>
-
-        {/* Location Display */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <MapPin className="w-4 h-4" />
-            <span>Pickup Location: {profile?.address || 'Address not set'}</span>
-          </div>
-          <p className="text-xs text-gray-500 mt-1">
-            This location will be shared with NGOs upon request acceptance
-          </p>
-        </div>
-
-        {/* Submit Button */}
+        {/* SUBMIT */}
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 px-6 rounded-lg font-medium hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 flex items-center justify-center"
+          className="w-full bg-green-600 text-white p-3 rounded"
         >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-              Adding Food...
-            </>
-          ) : (
-            <>
-              <UtensilsCrossed className="w-5 h-5 mr-2" />
-              Add Food Donation
-            </>
-          )}
+          {isSubmitting ? "Adding..." : "Add Donation"}
         </button>
+
+        {/* LOCATION */}
+        <div className="text-sm text-gray-500 flex items-center mt-2">
+          <MapPin className="mr-1 w-4 h-4" />
+          {profile?.address || "No address set"}
+        </div>
+
       </form>
     </div>
   );
