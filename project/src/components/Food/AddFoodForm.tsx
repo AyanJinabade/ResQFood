@@ -1,295 +1,335 @@
-import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { useApp } from '../../context/AppContext';
-import { 
-  UtensilsCrossed, 
-  Clock, 
-  MapPin, 
-  Camera, 
-  AlertTriangle,
-  CheckCircle
-} from 'lucide-react';
+import React, { useState } from "react";
+import { supabase, useAuth } from "../../context/AuthContext";
+import LocationPicker from "../Maps/LocationPicker";
 
-const AddFoodForm = () => {
+export default function AddFoodForm() {
   const { user } = useAuth();
-  const { addDonation } = useApp();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    foodName: '',
-    foodType: 'meals' as 'meals' | 'bakery' | 'fruits' | 'vegetables' | 'dairy' | 'other',
-    quantity: '',
-    unit: 'servings',
-    description: '',
-    expiryHours: '4',
-    imageUrl: ''
-  });
 
-  const foodTypes = [
-    { value: 'meals', label: 'Prepared Meals', icon: '🍽️' },
-    { value: 'bakery', label: 'Bakery Items', icon: '🍞' },
-    { value: 'fruits', label: 'Fresh Fruits', icon: '🍎' },
-    { value: 'vegetables', label: 'Vegetables', icon: '🥬' },
-    { value: 'dairy', label: 'Dairy Products', icon: '🥛' },
-    { value: 'other', label: 'Other', icon: '📦' }
-  ];
+  const [foodName, setFoodName] = useState("");
+  const [foodType, setFoodType] = useState("veg");
+  const [quantity, setQuantity] = useState<number>(1);
+  const [unit, setUnit] = useState("kg");
 
-  const units = [
-    'servings', 'pieces', 'kg', 'lbs', 'liters', 'packages'
-  ];
+  const [pickupTime, setPickupTime] = useState("");
+  const [expiryTime, setExpiryTime] = useState("");
 
-  // Simulate freshness score based on food type and expiry time
-  const calculateFreshness = () => {
-    const baseScore = Math.floor(Math.random() * 20) + 80; // 80-100
-    const expiryPenalty = Math.max(0, (parseInt(formData.expiryHours) - 4) * -2);
-    return Math.max(70, baseScore + expiryPenalty);
-  };
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [address, setAddress] = useState("");
+
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function handleSubmit(
+    e: React.FormEvent<HTMLFormElement>
+  ) {
     e.preventDefault();
-    if (!user) return;
 
-    setIsSubmitting(true);
+    if (!user?.email) {
+      setMessage("User not found");
+      return;
+    }
+
+    if (!latitude || !longitude) {
+      setMessage("Please select donation location");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
 
     try {
-      const expiryTime = new Date();
-      expiryTime.setHours(expiryTime.getHours() + parseInt(formData.expiryHours));
+      // Get restaurant profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("email", user.email)
+        .single();
 
-      await addDonation({
-        userId: user.id,
-        userName: user.name,
-        foodName: formData.foodName,
-        foodType: formData.foodType,
-        quantity: parseInt(formData.quantity),
-        unit: formData.unit,
-        description: formData.description,
-        imageUrl: formData.imageUrl,
-        freshnessScore: calculateFreshness(),
-        expiryTime: expiryTime.toISOString(),
-        status: 'available',
-        location: user.location
-      });
+      if (!profile?.id) {
+        setMessage("Profile not found");
+        setLoading(false);
+        return;
+      }
 
-      setShowSuccess(true);
-      setFormData({
-        foodName: '',
-        foodType: 'meals',
-        quantity: '',
-        unit: 'servings',
-        description: '',
-        expiryHours: '4',
-        imageUrl: ''
-      });
+      let imageUrl = "";
 
-      setTimeout(() => setShowSuccess(false), 3000);
-    } catch (error) {
-      console.error('Failed to add donation:', error);
-    } finally {
-      setIsSubmitting(false);
+      // Optional image upload
+      if (imageFile) {
+        const fileName = `${Date.now()}-${imageFile.name}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("food-images")
+          .upload(fileName, imageFile);
+
+        if (uploadError) {
+          console.error(uploadError);
+        } else {
+          const { data } = supabase.storage
+            .from("food-images")
+            .getPublicUrl(fileName);
+
+          imageUrl = data.publicUrl;
+        }
+      }
+
+      // Insert donation
+      const { error } = await supabase
+        .from("food_donations")
+        .insert([
+          {
+            donor_id: profile.id,
+            donor_name:
+              profile.full_name || "Restaurant",
+
+            food_name: foodName,
+
+            // IMPORTANT:
+            // Must match enum exactly
+            // use non_veg not non-veg
+            food_type: foodType,
+
+            quantity: Number(quantity),
+
+            // IMPORTANT FIX
+            // Automatically set remaining quantity
+            remaining_quantity: Number(quantity),
+
+            // Initial requested quantity
+            requested_quantity: 0,
+
+            unit,
+
+            pickup_time: pickupTime,
+            expiry_time: expiryTime,
+
+            latitude,
+            longitude,
+            address,
+
+            image_url: imageUrl,
+
+            // NOT NULL fix
+            description:
+              "Fresh food donation available",
+
+            status: "available",
+          },
+        ]);
+
+      if (error) {
+        console.error(error);
+        setMessage(error.message);
+      } else {
+        setMessage(
+          "Food donation added successfully"
+        );
+
+        // Reset form
+        setFoodName("");
+        setFoodType("veg");
+        setQuantity(1);
+        setUnit("kg");
+        setPickupTime("");
+        setExpiryTime("");
+        setImageFile(null);
+        setLatitude(null);
+        setLongitude(null);
+        setAddress("");
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage("Something went wrong");
     }
-  };
 
-  if (showSuccess) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-8 h-8 text-green-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Food Added Successfully!</h2>
-          <p className="text-gray-600 mb-6">Your food donation is now available for NGOs to request.</p>
-          <button
-            onClick={() => setShowSuccess(false)}
-            className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all transform hover:scale-105"
-          >
-            Add Another Food Item
-          </button>
-        </div>
-      </div>
-    );
+    setLoading(false);
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center space-x-3 mb-6">
-        <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg">
-          <UtensilsCrossed className="w-6 h-6 text-white" />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Add Food Donation</h2>
-          <p className="text-gray-600">Share your surplus food with those in need</p>
-        </div>
-      </div>
+    <div className="max-w-3xl mx-auto bg-white shadow rounded-xl p-6">
+      <h2 className="text-2xl font-bold mb-6">
+        Add Food Donation
+      </h2>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Food Type Selection */}
+      {message && (
+        <div className="mb-4 p-3 rounded bg-green-50 text-green-700">
+          {message}
+        </div>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-5"
+      >
+        {/* Food Name */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Food Category
+          <label className="block font-medium mb-1">
+            Food Name
           </label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {foodTypes.map((type) => (
-              <button
-                key={type.value}
-                type="button"
-                onClick={() => setFormData({ ...formData, foodType: type.value as any })}
-                className={`p-4 rounded-lg border text-center transition-all ${
-                  formData.foodType === type.value
-                    ? 'border-green-500 bg-green-50 text-green-700'
-                    : 'border-gray-200 hover:border-green-300'
-                }`}
-              >
-                <div className="text-2xl mb-1">{type.icon}</div>
-                <div className="font-medium text-sm">{type.label}</div>
-              </button>
-            ))}
-          </div>
+          <input
+            type="text"
+            value={foodName}
+            onChange={(e) =>
+              setFoodName(e.target.value)
+            }
+            required
+            className="w-full border rounded-lg p-3"
+            placeholder="Enter food name"
+          />
         </div>
 
-        {/* Food Details */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Food Type */}
+        <div>
+          <label className="block font-medium mb-1">
+            Food Type
+          </label>
+          <select
+            value={foodType}
+            onChange={(e) =>
+              setFoodType(e.target.value)
+            }
+            className="w-full border rounded-lg p-3"
+          >
+            <option value="veg">Veg</option>
+            <option value="non_veg">
+              Non Veg
+            </option>
+            <option value="packaged">
+              Packaged
+            </option>
+          </select>
+        </div>
+
+        {/* Quantity + Unit */}
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="foodName" className="block text-sm font-medium text-gray-700 mb-1">
-              Food Item Name *
+            <label className="block font-medium mb-1">
+              Quantity
             </label>
             <input
-              id="foodName"
-              type="text"
-              value={formData.foodName}
-              onChange={(e) => setFormData({ ...formData, foodName: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-              placeholder="e.g., Vegetable Biryani, Fresh Bread"
+              type="number"
+              min="1"
+              value={quantity}
+              onChange={(e) =>
+                setQuantity(
+                  Number(e.target.value)
+                )
+              }
               required
+              className="w-full border rounded-lg p-3"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
-                Quantity *
-              </label>
-              <input
-                id="quantity"
-                type="number"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                placeholder="50"
-                min="1"
-                required
-              />
-            </div>
-            <div>
-              <label htmlFor="unit" className="block text-sm font-medium text-gray-700 mb-1">
-                Unit
-              </label>
-              <select
-                id="unit"
-                value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-              >
-                {units.map((unit) => (
-                  <option key={unit} value={unit}>
-                    {unit}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className="block font-medium mb-1">
+              Unit
+            </label>
+            <select
+              value={unit}
+              onChange={(e) =>
+                setUnit(e.target.value)
+              }
+              className="w-full border rounded-lg p-3"
+            >
+              <option value="kg">KG</option>
+              <option value="grams">
+                Grams
+              </option>
+            </select>
           </div>
         </div>
 
-        {/* Description */}
+        {/* Pickup Time */}
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-            Description *
+          <label className="block font-medium mb-1">
+            Pickup Time
           </label>
-          <textarea
-            id="description"
-            rows={3}
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-            placeholder="Describe the food, ingredients, preparation method, any allergens, etc."
+          <input
+            type="datetime-local"
+            value={pickupTime}
+            onChange={(e) =>
+              setPickupTime(e.target.value)
+            }
             required
+            className="w-full border rounded-lg p-3"
           />
         </div>
 
         {/* Expiry Time */}
         <div>
-          <label htmlFor="expiryHours" className="block text-sm font-medium text-gray-700 mb-1">
-            <Clock className="w-4 h-4 inline mr-2" />
-            Best Before (Hours from now)
-          </label>
-          <select
-            id="expiryHours"
-            value={formData.expiryHours}
-            onChange={(e) => setFormData({ ...formData, expiryHours: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-          >
-            <option value="2">2 hours</option>
-            <option value="4">4 hours</option>
-            <option value="8">8 hours</option>
-            <option value="12">12 hours</option>
-            <option value="24">24 hours</option>
-          </select>
-          <p className="text-sm text-gray-500 mt-1">
-            <AlertTriangle className="w-4 h-4 inline mr-1" />
-            Choose realistic timeframe to maintain food quality
-          </p>
-        </div>
-
-        {/* Image Upload */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            <Camera className="w-4 h-4 inline mr-2" />
-            Food Image (Optional)
+          <label className="block font-medium mb-1">
+            Expiry Time
           </label>
           <input
-            type="url"
-            value={formData.imageUrl}
-            onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-            placeholder="Paste image URL or upload later"
+            type="datetime-local"
+            value={expiryTime}
+            onChange={(e) =>
+              setExpiryTime(e.target.value)
+            }
+            required
+            className="w-full border rounded-lg p-3"
           />
-          <p className="text-sm text-gray-500 mt-1">
-            High-quality images help NGOs better assess the food
-          </p>
         </div>
 
-        {/* Location Display */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <MapPin className="w-4 h-4" />
-            <span>Pickup Location: {user?.location.address}</span>
-          </div>
-          <p className="text-xs text-gray-500 mt-1">
-            This location will be shared with NGOs upon request acceptance
-          </p>
+        {/* Upload Image */}
+        <div>
+          <label className="block font-medium mb-1">
+            Food Image
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) =>
+              setImageFile(
+                e.target.files?.[0] || null
+              )
+            }
+            className="w-full"
+          />
         </div>
 
-        {/* Submit Button */}
+        {/* Location Picker */}
+        <div>
+          <label className="block font-medium mb-2">
+            Donation Location
+          </label>
+
+          <LocationPicker
+            onLocationSelect={(
+              lat,
+              lng,
+              selectedAddress
+            ) => {
+              setLatitude(lat);
+              setLongitude(lng);
+              setAddress(
+                selectedAddress || ""
+              );
+            }}
+            height="350px"
+          />
+
+          {address && (
+            <p className="mt-2 text-sm text-gray-600">
+              <b>Selected Address:</b>{" "}
+              {address}
+            </p>
+          )}
+        </div>
+
+        {/* Submit */}
         <button
           type="submit"
-          disabled={isSubmitting}
-          className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 px-6 rounded-lg font-medium hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 flex items-center justify-center"
+          disabled={loading}
+          className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold"
         >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-              Adding Food...
-            </>
-          ) : (
-            <>
-              <UtensilsCrossed className="w-5 h-5 mr-2" />
-              Add Food Donation
-            </>
-          )}
+          {loading
+            ? "Submitting..."
+            : "Add Donation"}
         </button>
       </form>
     </div>
   );
-};
-
-export default AddFoodForm;
+}

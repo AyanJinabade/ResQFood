@@ -1,145 +1,162 @@
-import React from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { 
-  LayoutDashboard, 
-  Plus, 
-  History, 
-  MapPin, 
-  Users, 
-  BarChart3, 
-  MessageSquare, 
-  Settings,
-  UtensilsCrossed,
-  Building2,
-  Heart,
-  Shield
-} from 'lucide-react';
+// FILE: src/components/Layout/Sidebar.tsx
+
+import {
+  Home,
+  PlusCircle,
+  ClipboardList,
+  User,
+  MapPin,
+  LogOut,
+  Bell,
+} from "lucide-react";
+
+import { useAuth } from "../../context/AuthContext";
 
 interface SidebarProps {
   currentView: string;
   onViewChange: (view: string) => void;
 }
 
-const Sidebar = ({ currentView, onViewChange }: SidebarProps) => {
-  const { user } = useAuth();
+export default function Sidebar({
+  currentView,
+  onViewChange,
+}: SidebarProps) {
+  const { user, logout } = useAuth();
 
-  if (!user) return null;
-
-  const getMenuItems = () => {
-    const baseItems = [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    ];
-
-    switch (user.role) {
-      case 'restaurant':
-      case 'society':
-        return [
-          ...baseItems,
-          { id: 'add-food', label: 'Add Food', icon: Plus },
-          { id: 'my-donations', label: 'My Donations', icon: UtensilsCrossed },
-          { id: 'history', label: 'History', icon: History },
-          { id: 'feedback', label: 'Feedback', icon: MessageSquare },
-          { id: 'profile', label: 'Profile', icon: Settings },
-        ];
-
-      case 'ngo':
-        return [
-          ...baseItems,
-          { id: 'available-food', label: 'Available Food', icon: MapPin },
-          { id: 'my-requests', label: 'My Requests', icon: Heart },
-          { id: 'history', label: 'Collection History', icon: History },
-          { id: 'feedback', label: 'Feedback', icon: MessageSquare },
-          { id: 'profile', label: 'Profile', icon: Settings },
-        ];
-
-      case 'admin':
-        return [
-          ...baseItems,
-          { id: 'users', label: 'Manage Users', icon: Users },
-          { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-          { id: 'all-donations', label: 'All Donations', icon: UtensilsCrossed },
-          { id: 'feedback', label: 'Feedback Review', icon: MessageSquare },
-          { id: 'settings', label: 'Settings', icon: Settings },
-        ];
-
-      default:
-        return baseItems;
-    }
-  };
-
-  const menuItems = getMenuItems();
-
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'restaurant': return UtensilsCrossed;
-      case 'society': return Building2;
-      case 'ngo': return Heart;
-      case 'admin': return Shield;
-      default: return Users;
-    }
-  };
-
-  const RoleIcon = getRoleIcon(user.role);
+  const link = (
+    view: string,
+    label: string,
+    icon: JSX.Element
+  ) => (
+    <button
+      onClick={() => onViewChange(view)}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+        currentView === view
+          ? "bg-green-100 text-green-700 font-semibold shadow-sm"
+          : "text-gray-700 hover:bg-gray-100"
+      }`}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
 
   return (
-    <aside className="bg-white border-r border-gray-200 w-64 min-h-screen">
-      {/* User Info */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
-            <RoleIcon className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-900 truncate">{user.name}</h3>
-            <p className="text-sm text-green-600 capitalize">{user.role}</p>
-          </div>
-        </div>
+    <aside className="w-64 bg-white border-r min-h-screen p-6 flex flex-col justify-between shadow-sm">
+      {/* Top Section */}
+      <div>
+        {/* Logo */}
+        <h1 className="text-2xl font-bold text-green-600 mb-8">
+          ResQFood
+        </h1>
+
+        {/* Navigation */}
+        <nav className="space-y-2">
+          {/* Dashboard */}
+          {link(
+            "dashboard",
+            "Dashboard",
+            <Home size={18} />
+          )}
+
+          {/* Restaurant Side */}
+          {user?.role === "restaurant" && (
+            <>
+              {link(
+                "add-food",
+                "Add Donation",
+                <PlusCircle size={18} />
+              )}
+
+              {link(
+                "my-donations",
+                "My Donations",
+                <ClipboardList size={18} />
+              )}
+
+              {link(
+                "notifications",
+                "Restaurant Notifications",
+                <Bell size={18} />
+              )}
+            </>
+          )}
+
+          {/* NGO Side */}
+          {user?.role === "ngo" && (
+            <>
+              {link(
+                "available-food",
+                "Available Food",
+                <ClipboardList size={18} />
+              )}
+
+              {link(
+                "ngo-location",
+                "Set My Location",
+                <MapPin size={18} />
+              )}
+
+              {link(
+                "notifications",
+                "NGO Notifications",
+                <Bell size={18} />
+              )}
+            </>
+          )}
+
+          {/* Admin Side */}
+          {user?.role === "admin" && (
+            <>
+              {link(
+                "all-donations",
+                "All Donations",
+                <ClipboardList size={18} />
+              )}
+
+              {link(
+                "notifications",
+                "System Notifications",
+                <Bell size={18} />
+              )}
+            </>
+          )}
+
+          {/* Common Profile */}
+          {link(
+            "profile",
+            "Profile Settings",
+            <User size={18} />
+          )}
+        </nav>
       </div>
 
-      {/* Navigation */}
-      <nav className="p-4">
-        <ul className="space-y-2">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentView === item.id;
+      {/* Bottom Section */}
+      <div className="pt-6 border-t">
+        {/* Logged-in User Info */}
+        <div className="mb-4">
+          <p className="text-sm text-gray-500">
+            Logged in as
+          </p>
 
-            return (
-              <li key={item.id}>
-                <button
-                  onClick={() => onViewChange(item.id)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all ${
-                    isActive
-                      ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg transform scale-105'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-green-600'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+          <p className="font-medium text-gray-800">
+            {user?.full_name || "User"}
+          </p>
 
-      {/* Quick Stats */}
-      <div className="p-4 border-t border-gray-200 mt-8">
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4">
-          <h4 className="font-semibold text-green-800 mb-2">Impact Today</h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-green-700">Meals Saved:</span>
-              <span className="font-medium text-green-800">127</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-green-700">People Fed:</span>
-              <span className="font-medium text-green-800">89</span>
-            </div>
-          </div>
+          <p className="text-xs text-gray-500 capitalize">
+            {user?.role || "member"}
+          </p>
         </div>
+
+        {/* Logout */}
+        <button
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition"
+        >
+          <LogOut size={18} />
+          <span>Logout</span>
+        </button>
       </div>
     </aside>
   );
-};
-
-export default Sidebar;
+}
